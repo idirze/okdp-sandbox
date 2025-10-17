@@ -22,6 +22,10 @@ on:
       - closed
     branches:
       - main
+  workflow_run:
+    workflows: ["ci"]
+    types:
+      - completed
 
 permissions:
   contents: write
@@ -41,7 +45,7 @@ jobs:
       tag_name: ${{ steps.release-please.outputs.tag_name }}
     # Skip the release process in the fork
     # The pull request should come from the same repo (github_token from the fork does not have write permissions)
-    if: github.repository_owner == 'OKDP' && github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.repository_owner == 'idirze' && github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: googleapis/release-please-action@v4
         id: release-please
@@ -49,7 +53,12 @@ jobs:
   publish:
     needs: [release-please]
     uses: ./.github/workflows/kubocd-package-template.yml
-    if: github.repository_owner == 'OKDP' && needs.release-please.outputs.release_created == 'true'
+    if: >
+        github.repository_owner == 'idirze' && (
+          needs.release-please.outputs.release_created == 'true' ||
+         ((github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main')
+          && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+        )
     with:
       ci_registry: "ghcr.io"
       registry: "quay.io"
